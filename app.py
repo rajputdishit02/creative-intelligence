@@ -5,6 +5,7 @@ from src.video.processor import analyse_video
 from src.video.scene_detector import detect_scenes
 from src.analysis.pacing import analyse_pacing
 from src.video.frame_extractor import extract_keyframes
+from src.audio.extractor import extract_audio
 
 UPLOAD_DIR = Path("data/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -105,6 +106,10 @@ if uploaded_video:
                     "data/frames",
                     frame_count=5
                 )
+                audio_analysis = extract_audio(
+                    str(video_path),
+                    "data/audio"
+            )
 
                 st.success("Video analysis complete.")
 
@@ -227,6 +232,23 @@ if uploaded_video:
                 else:
                     st.warning(
                         "No keyframes could be extracted."
+                    )
+
+                st.divider()
+
+                st.subheader("Audio Analysis")
+
+                if audio_analysis["has_audio"]:
+                    st.success("Audio track detected.")
+
+                    st.write(
+                        "**Extracted audio file:**",
+                        audio_analysis["audio_path"]
+                    )
+
+                else:
+                    st.warning(
+                        "No usable audio track was detected in this video."
                     )
             except Exception as error:
                 st.error(f"Video analysis failed: {error}")
