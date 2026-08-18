@@ -239,6 +239,7 @@ if uploaded_video:
                 st.subheader("Audio Analysis")
 
                 if audio_analysis["has_audio"]:
+
                     st.success("Audio track detected.")
 
                     st.write(
@@ -247,8 +248,14 @@ if uploaded_video:
                     )
 
                 else:
+
                     st.warning(
-                        "No usable audio track was detected in this video."
+                        "No usable audio track was detected."
                     )
+
+                    if audio_analysis.get("error"):
+                        st.caption(
+                            f"Details: {audio_analysis['error']}"
+                        )
             except Exception as error:
                 st.error(f"Video analysis failed: {error}")

@@ -1,6 +1,7 @@
 """Placeholder module for the ReCreate Creative Intelligence MVP."""
 from pathlib import Path
 import subprocess
+import shutil
 
 
 def extract_audio(video_path: str, output_dir: str) -> dict:
@@ -11,8 +12,17 @@ def extract_audio(video_path: str, output_dir: str) -> dict:
 
     audio_path = output / f"{video.stem}.wav"
 
+    ffmpeg_path = shutil.which("ffmpeg")
+
+    if not ffmpeg_path:
+        return {
+            "has_audio": False,
+            "audio_path": None,
+            "error": "FFmpeg could not be found by the Python process.",
+        }
+
     command = [
-        "ffmpeg",
+        ffmpeg_path,
         "-y",
         "-i",
         str(video),
@@ -36,15 +46,18 @@ def extract_audio(video_path: str, output_dir: str) -> dict:
         return {
             "has_audio": False,
             "audio_path": None,
+            "error": result.stderr,
         }
 
     if not audio_path.exists() or audio_path.stat().st_size == 0:
         return {
             "has_audio": False,
             "audio_path": None,
+            "error": "No usable audio track was found.",
         }
 
     return {
         "has_audio": True,
         "audio_path": str(audio_path),
+        "error": None,
     }
