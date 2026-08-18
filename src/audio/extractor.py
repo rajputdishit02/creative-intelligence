@@ -1,7 +1,33 @@
 """Placeholder module for the ReCreate Creative Intelligence MVP."""
+import os
 from pathlib import Path
-import subprocess
 import shutil
+import subprocess
+
+
+def _resolve_ffmpeg_path() -> str | None:
+    """Find FFmpeg in PATH or common Windows install locations."""
+    resolved = shutil.which("ffmpeg")
+    if resolved:
+        return resolved
+
+    candidates = [
+        Path(r"C:\ffmpeg\bin\ffmpeg.exe"),
+        Path(r"C:\Program Files\ffmpeg\bin\ffmpeg.exe"),
+        Path(r"C:\Program Files\GitHub CLI\ffmpeg.exe"),
+        Path(r"C:\Program Files\Gyan.dev\ffmpeg\bin\ffmpeg.exe"),
+        Path(r"C:\Program Files (x86)\Gyan.dev\ffmpeg\bin\ffmpeg.exe"),
+    ]
+
+    for entry in os.environ.get("PATH", "").split(os.pathsep):
+        if entry:
+            candidates.append(Path(entry) / "ffmpeg.exe")
+
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+
+    return None
 
 
 def extract_audio(video_path: str, output_dir: str) -> dict:
@@ -12,13 +38,13 @@ def extract_audio(video_path: str, output_dir: str) -> dict:
 
     audio_path = output / f"{video.stem}.wav"
 
-    ffmpeg_path = shutil.which("ffmpeg")
+    ffmpeg_path = _resolve_ffmpeg_path()
 
     if not ffmpeg_path:
         return {
             "has_audio": False,
             "audio_path": None,
-            "error": "FFmpeg could not be found by the Python process.",
+            "error": "FFmpeg could not be found. Install FFmpeg and ensure ffmpeg.exe is on PATH or in a common Windows install directory.",
         }
 
     command = [
