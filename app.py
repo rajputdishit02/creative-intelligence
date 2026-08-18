@@ -199,34 +199,34 @@ if uploaded_video:
                     st.write(
                         "No major scene transitions detected."
                     )
-                    st.divider()
+                st.divider()
 
-                    st.subheader("Visual Keyframes")
+                st.subheader("Visual Keyframes")
 
-                    st.caption(
-                        "Representative frames sampled throughout the video."
+                st.caption(
+                    "Representative frames sampled throughout the video."
+                )
+
+                if keyframes:
+
+                    columns = st.columns(len(keyframes))
+
+                    for column, frame in zip(columns, keyframes):
+
+                        with column:
+
+                            st.image(
+                                frame["path"],
+                                use_container_width=True
+                            )
+
+                            st.caption(
+                                f"{frame['timestamp']} sec"
+                            )
+
+                else:
+                    st.warning(
+                        "No keyframes could be extracted."
                     )
-
-                    if keyframes:
-
-                        columns = st.columns(len(keyframes))
-
-                        for column, frame in zip(columns, keyframes):
-
-                            with column:
-
-                                st.image(
-                                    frame["path"],
-                                    use_container_width=True
-                                )
-
-                                st.caption(
-                                    f"{frame['timestamp']} sec"
-                                )
-
-                    else:
-                        st.warning(
-                            "No keyframes could be extracted."
-                        )
             except Exception as error:
                 st.error(f"Video analysis failed: {error}")
