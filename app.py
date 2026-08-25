@@ -7,6 +7,9 @@ from src.analysis.pacing import analyse_pacing
 from src.video.frame_extractor import extract_keyframes
 from src.audio.extractor import extract_audio
 from src.audio.transcription import transcribe_audio
+from src.analysis.hook import analyse_hook
+from src.analysis.cta import analyse_cta
+from src.analysis.speech import analyse_speech
 
 UPLOAD_DIR = Path("data/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -117,6 +120,33 @@ if uploaded_video:
                     transcription = transcribe_audio(
                         audio_analysis["audio_path"]
                     )
+
+                creative_analysis = None
+
+                if (
+                    transcription
+                    and transcription["success"]
+                    and transcription["words"]
+                ):
+                    hook_analysis = analyse_hook(
+                        transcription["words"]
+                    )
+
+                    cta_analysis = analyse_cta(
+                        transcription["words"],
+                        analysis["duration"]
+                    )
+
+                    speech_analysis = analyse_speech(
+                        transcription["words"],
+                        analysis["duration"]
+                    )
+
+                    creative_analysis = {
+                        "hook": hook_analysis,
+                        "cta": cta_analysis,
+                        "speech": speech_analysis,
+                    }
 
                 st.success("Video analysis complete.")
 
@@ -301,5 +331,100 @@ if uploaded_video:
                         st.error(
                             f"Transcription failed: {transcription['error']}"
                         )
+
+                if creative_analysis:
+
+                    st.divider()
+                    st.subheader("Creative Intelligence")
+
+                    st.caption(
+                        "Initial heuristic analysis based on transcript timing "
+                        "and recognised marketing structures."
+                    )
+
+                    hook = creative_analysis["hook"]
+                    cta = creative_analysis["cta"]
+                    speech = creative_analysis["speech"]
+
+                    col1, col2, col3 = st.columns(3)
+
+                    with col1:
+                        st.metric(
+                            "Hook Score",
+                            f"{hook['score']} / 100"
+                        )
+
+                    with col2:
+                        st.metric(
+                            "CTA Score",
+                            f"{cta['score']} / 100"
+                        )
+
+                    with col3:
+                        st.metric(
+                            "Speech Rate",
+                            f"{speech['words_per_minute']} WPM"
+                        )
+
+                    st.subheader("Hook Analysis")
+
+                    st.write(
+                        "**Opening:**",
+                        hook["hook_text"]
+                        or "No opening hook detected."
+                    )
+
+                    st.write(
+                        "**Hook Type:**",
+                        hook["hook_type"]
+                    )
+
+                    if hook["hook_start"] is not None:
+                        st.write(
+                            "**Hook Timing:**",
+                            f"{hook['hook_start']}s – "
+                            f"{hook['hook_end']}s"
+                        )
+
+                    for reason in hook["reasons"]:
+                        st.write("•", reason)
+
+                    st.subheader("Call to Action")
+
+                    if cta["cta_detected"]:
+                        st.success("CTA detected.")
+
+                        st.write(
+                            "**CTA excerpt:**",
+                            cta["cta_text"]
+                        )
+
+                        st.write(
+                            "**CTA starts at:**",
+                            f"{cta['cta_start']} sec"
+                        )
+
+                        st.write(
+                            "**CTA position:**",
+                            cta["cta_position"]
+                        )
+
+                    else:
+                        st.warning(
+                            "No clear spoken call to action detected."
+                        )
+
+                    st.subheader("Speech Analysis")
+
+                    st.write(
+                        "**Word Count:**",
+                        speech["word_count"]
+                    )
+
+                    st.write(
+                        "**Speech Rate:**",
+                        speech["speech_rate"]
+                    )
+
             except Exception as error:
                 st.error(f"Video analysis failed: {error}")
