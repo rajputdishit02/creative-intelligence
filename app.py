@@ -10,6 +10,9 @@ from src.audio.transcription import transcribe_audio
 from src.analysis.hook import analyse_hook
 from src.analysis.cta import analyse_cta
 from src.analysis.speech import analyse_speech
+from src.analysis.message import analyse_message
+from src.analysis.story import analyse_story
+from src.analysis.objective import calculate_objective_score
 
 UPLOAD_DIR = Path("data/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -141,11 +144,31 @@ if uploaded_video:
                         transcription["words"],
                         analysis["duration"]
                     )
+                    message_analysis = analyse_message(
+                        transcription["transcript"]
+                    )
+
+                    story_analysis = analyse_story(
+                        hook_analysis,
+                        message_analysis,
+                        cta_analysis
+                    )
+
+                    objective_analysis = calculate_objective_score(
+                        objective=objective,
+                        hook_score=hook_analysis["score"],
+                        message_score=message_analysis["score"],
+                        cta_score=cta_analysis["score"],
+                        story_score=story_analysis["score"],
+                    )
 
                     creative_analysis = {
                         "hook": hook_analysis,
                         "cta": cta_analysis,
                         "speech": speech_analysis,
+                        "message": message_analysis,
+                        "story": story_analysis,
+                        "objective": objective_analysis,
                     }
 
                 st.success("Video analysis complete.")
@@ -425,6 +448,59 @@ if uploaded_video:
                         "**Speech Rate:**",
                         speech["speech_rate"]
                     )
+
+                    message = creative_analysis["message"]
+                    story = creative_analysis["story"]
+                    objective_result = creative_analysis["objective"]
+
+                    st.divider()
+
+                    st.subheader("Message Clarity")
+
+                    st.metric(
+                        "Message Clarity Score",
+                        f"{message['score']} / 100"
+                    )
+
+                    st.write(
+                        "**Clarity:**",
+                        message["clarity_label"]
+                    )
+
+                    for reason in message["reasons"]:
+                        st.write("•", reason)
+
+
+                    st.subheader("Story Structure")
+
+                    st.metric(
+                        "Story Structure Score",
+                        f"{story['score']} / 100"
+                    )
+
+                    st.write(
+                        "**Structure:**",
+                        story["label"]
+                    )
+
+                    for component, present in story["components"].items():
+                        st.write(
+                            f"{'✅' if present else '❌'} "
+                            f"{component.title()}"
+                        )
+
+
+                    st.subheader("Campaign Objective Score")
+
+                    st.metric(
+                        f"{objective_result['objective']} Score",
+                        f"{objective_result['score']} / 100"
+                    )
+
+                    st.caption(
+                        "This score changes according to the selected campaign objective."
+                    )
+
 
             except Exception as error:
                 st.error(f"Video analysis failed: {error}")
