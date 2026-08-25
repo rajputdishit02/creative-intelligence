@@ -1,4 +1,4 @@
-"""Placeholder module for the ReCreate Creative Intelligence MVP."""
+"""Pacing analysis for the Creative Intelligence Platform."""
 def analyse_pacing(
     duration: float,
     scene_count: int

@@ -1,1 +1,1 @@
-"""Placeholder module for the ReCreate Creative Intelligence MVP."""
+"""AI content analysis placeholders for the Creative Intelligence Platform."""

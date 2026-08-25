@@ -1,4 +1,4 @@
-"""Placeholder module for the ReCreate Creative Intelligence MVP."""
+"""Scene detection for the Creative Intelligence Platform."""
 import cv2
 
 

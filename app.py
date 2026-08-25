@@ -26,13 +26,13 @@ UPLOAD_DIR = Path("data/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 st.set_page_config(
-    page_title="ReCreate Creative Intelligence",
+    page_title="Creative Intelligence Platform",
     page_icon="🎬",
     layout="wide",
 )
 
-st.title("🎬 ReCreate Creative Intelligence")
-st.caption("AI-assisted creative quality analysis for marketing videos.")
+st.title("🎬 Creative Intelligence Platform")
+st.caption("AI-assisted analysis and optimisation for marketing videos.")
 st.divider()
 
 client_name = st.text_input(

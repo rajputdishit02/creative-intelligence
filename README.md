@@ -1,6 +1,6 @@
-# ReCreate Creative Intelligence
+# Creative Intelligence Platform
 
-Starter MVP for an AI-assisted marketing video quality and creative intelligence platform designed around ReCreate Australia's workflow.
+Starter MVP for AI-assisted analysis and optimisation for marketing videos.
 
 ## Current MVP
 

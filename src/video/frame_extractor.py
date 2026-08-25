@@ -1,4 +1,4 @@
-"""Placeholder module for the ReCreate Creative Intelligence MVP."""
+"""Keyframe extraction for the Creative Intelligence Platform."""
 from pathlib import Path
 import cv2
 
