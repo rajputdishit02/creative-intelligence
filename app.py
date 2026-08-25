@@ -13,6 +13,13 @@ from src.analysis.speech import analyse_speech
 from src.analysis.message import analyse_message
 from src.analysis.story import analyse_story
 from src.analysis.objective import calculate_objective_score
+from src.analysis.technical import score_technical_quality
+from src.analysis.platform import score_all_platforms, score_platform_fit
+from src.analysis.scoring import (
+    calculate_creative_score,
+    score_pacing_for_creative,
+)
+from src.analysis.recommendations import build_recommendations
 
 UPLOAD_DIR = Path("data/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -94,7 +101,7 @@ if uploaded_video:
     if st.button(
         "Analyse Video",
         type="primary",
-        use_container_width=True,
+        width="stretch",
     ):
 
         with st.spinner("Analysing video..."):
@@ -118,6 +125,19 @@ if uploaded_video:
                     "data/audio"
                 )
                 transcription = None
+                technical_quality = score_technical_quality(analysis)
+                platform_scores = score_all_platforms(analysis)
+                platform_fit = (
+                    score_platform_fit(analysis, platform)
+                    if platform == "Other"
+                    else platform_scores[platform]
+                )
+                pacing_score = score_pacing_for_creative(pacing_analysis)
+                hook_analysis = None
+                cta_analysis = None
+                speech_analysis = None
+                message_analysis = None
+                story_analysis = None
 
                 if audio_analysis["has_audio"]:
                     transcription = transcribe_audio(
@@ -171,7 +191,118 @@ if uploaded_video:
                         "objective": objective_analysis,
                     }
 
+                else:
+                    objective_analysis = calculate_objective_score(
+                        objective=objective,
+                        hook_score=0,
+                        message_score=0,
+                        cta_score=0,
+                        story_score=0,
+                    )
+
+                creative_score = calculate_creative_score(
+                    objective_score=objective_analysis["score"],
+                    technical_score=technical_quality["score"],
+                    platform_score=platform_fit["score"],
+                    hook_score=hook_analysis["score"] if hook_analysis else 0,
+                    cta_score=cta_analysis["score"] if cta_analysis else 0,
+                    pacing_score=pacing_score["score"],
+                )
+
+                recommendations = build_recommendations(
+                    creative_score=creative_score,
+                    technical_quality=technical_quality,
+                    platform_fit=platform_fit,
+                    hook_analysis=hook_analysis,
+                    cta_analysis=cta_analysis,
+                    pacing_score=pacing_score,
+                    objective_analysis=objective_analysis,
+                )
+
                 st.success("Video analysis complete.")
+
+                st.subheader("Creative Scorecard")
+
+                st.caption(creative_score["disclaimer"])
+
+                with st.container(horizontal=True):
+                    st.metric(
+                        "Overall Creative Score",
+                        f"{creative_score['score']} / 100",
+                        creative_score["label"],
+                        border=True,
+                    )
+                    st.metric(
+                        "Campaign Objective Fit",
+                        f"{objective_analysis['score']} / 100",
+                        objective_analysis["objective"],
+                        border=True,
+                    )
+                    st.metric(
+                        "Technical Quality",
+                        f"{technical_quality['score']} / 100",
+                        technical_quality["label"],
+                        border=True,
+                    )
+                    st.metric(
+                        "Platform Fit",
+                        f"{platform_fit['score']} / 100",
+                        platform_fit["platform"],
+                        border=True,
+                    )
+
+                st.write("**Creative Score weights:**")
+                weights_text = ", ".join(
+                    f"{name.replace('_', ' ').title()}: {weight * 100:.0f}%"
+                    for name, weight in creative_score["weights"].items()
+                )
+                st.caption(weights_text)
+
+                with st.expander("View component scores and score reasons"):
+                    st.write("**Overall component scores**")
+                    for component, score in creative_score["components"].items():
+                        st.write(
+                            f"{component.replace('_', ' ').title()}: {score} / 100"
+                        )
+
+                    st.write("**Technical quality reasons**")
+                    for component, score in technical_quality["components"].items():
+                        st.write(
+                            f"{component.replace('_', ' ').title()}: {score} / 100"
+                        )
+
+                    for reason in technical_quality["reasons"]:
+                        st.write("•", reason)
+
+                    st.write("**Platform fit reasons**")
+                    for component, score in platform_fit["components"].items():
+                        st.write(
+                            f"{component.replace('_', ' ').title()}: {score} / 100"
+                        )
+
+                    for reason in platform_fit["reasons"]:
+                        st.write("•", reason)
+
+                    st.write("**Pacing score reason**")
+                    for reason in pacing_score["reasons"]:
+                        st.write("•", reason)
+
+                st.subheader("Recommended Improvements")
+
+                for item in recommendations:
+                    with st.container(border=True):
+                        st.write(
+                            f"**{item['priority']} priority: {item['area']}**"
+                        )
+                        st.write(item["recommendation"])
+
+                with st.expander("Compare platform compatibility"):
+                    for platform_name, platform_result in platform_scores.items():
+                        st.write(
+                            f"**{platform_name}:** "
+                            f"{platform_result['score']} / 100 "
+                            f"({platform_result['label']})"
+                        )
 
                 st.subheader("Video Intelligence")
 
@@ -282,7 +413,7 @@ if uploaded_video:
 
                             st.image(
                                 frame["path"],
-                                use_container_width=True
+                                width="stretch"
                             )
 
                             st.caption(

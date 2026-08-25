@@ -98,10 +98,10 @@ def analyse_cta(words: list, video_duration: float) -> dict:
     else:
         relative_position = 1
 
-    if relative_position < 0.4:
+    if relative_position < 0.35:
         position = "Early"
         score = 70
-    elif relative_position < 0.75:
+    elif relative_position <= 0.65:
         position = "Middle"
         score = 80
     else:
