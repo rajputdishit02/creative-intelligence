@@ -65,13 +65,16 @@ def test_creative_score_uses_transparent_weights():
         objective_score=80,
         technical_score=90,
         platform_score=70,
+        visual_score=88,
         hook_score=60,
         cta_score=50,
         pacing_score=100,
     )
 
-    assert result["score"] == 76
-    assert result["weights"]["campaign_objective_fit"] == 0.25
+    assert result["score"] == 77.6
+    assert result["weights"]["campaign_objective_fit"] == 0.22
+    assert result["weights"]["visual_quality"] == 0.15
+    assert sum(result["weights"].values()) == 1
     assert "not a validated" in result["disclaimer"]
 
 

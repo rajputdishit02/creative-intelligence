@@ -20,6 +20,7 @@ from src.analysis.scoring import (
     score_pacing_for_creative,
 )
 from src.analysis.recommendations import build_recommendations
+from src.analysis.visual import analyse_motion_intensity, analyse_visual_quality
 
 UPLOAD_DIR = Path("data/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -120,6 +121,11 @@ if uploaded_video:
                     "data/frames",
                     frame_count=5
                 )
+                visual_quality = analyse_visual_quality(keyframes)
+                motion_analysis = analyse_motion_intensity(
+                    video_path=str(video_path),
+                    frame_inputs=keyframes,
+                )
                 audio_analysis = extract_audio(
                     str(video_path),
                     "data/audio"
@@ -204,6 +210,7 @@ if uploaded_video:
                     objective_score=objective_analysis["score"],
                     technical_score=technical_quality["score"],
                     platform_score=platform_fit["score"],
+                    visual_score=visual_quality["score"],
                     hook_score=hook_analysis["score"] if hook_analysis else 0,
                     cta_score=cta_analysis["score"] if cta_analysis else 0,
                     pacing_score=pacing_score["score"],
@@ -213,6 +220,8 @@ if uploaded_video:
                     creative_score=creative_score,
                     technical_quality=technical_quality,
                     platform_fit=platform_fit,
+                    visual_quality=visual_quality,
+                    motion_analysis=motion_analysis,
                     hook_analysis=hook_analysis,
                     cta_analysis=cta_analysis,
                     pacing_score=pacing_score,
@@ -250,6 +259,12 @@ if uploaded_video:
                         platform_fit["platform"],
                         border=True,
                     )
+                    st.metric(
+                        "Visual Quality",
+                        f"{visual_quality['score']} / 100",
+                        visual_quality["label"],
+                        border=True,
+                    )
 
                 st.write("**Creative Score weights:**")
                 weights_text = ", ".join(
@@ -281,6 +296,21 @@ if uploaded_video:
                         )
 
                     for reason in platform_fit["reasons"]:
+                        st.write("•", reason)
+
+                    st.write("**Visual quality reasons**")
+                    visual_components = {
+                        "sharpness": visual_quality["sharpness_score"],
+                        "exposure": visual_quality["exposure_score"],
+                        "contrast": visual_quality["contrast_score"],
+                        "visual_consistency": visual_quality["consistency_score"],
+                    }
+                    for component, score in visual_components.items():
+                        st.write(
+                            f"{component.replace('_', ' ').title()}: {score} / 100"
+                        )
+
+                    for reason in visual_quality["reasons"]:
                         st.write("•", reason)
 
                     st.write("**Pacing score reason**")
@@ -423,6 +453,78 @@ if uploaded_video:
                 else:
                     st.warning(
                         "No keyframes could be extracted."
+                    )
+
+                st.divider()
+
+                st.subheader("Visual Intelligence")
+
+                with st.container(horizontal=True):
+                    st.metric(
+                        "Visual Quality Score",
+                        f"{visual_quality['score']} / 100",
+                        visual_quality["label"],
+                        border=True,
+                    )
+                    st.metric(
+                        "Sharpness",
+                        f"{visual_quality['sharpness_score']} / 100",
+                        border=True,
+                    )
+                    st.metric(
+                        "Exposure",
+                        f"{visual_quality['exposure_score']} / 100",
+                        border=True,
+                    )
+                    st.metric(
+                        "Contrast",
+                        f"{visual_quality['contrast_score']} / 100",
+                        border=True,
+                    )
+                    st.metric(
+                        "Visual Consistency",
+                        f"{visual_quality['consistency_score']} / 100",
+                        border=True,
+                    )
+
+                st.write(
+                    "**Visual Activity / Motion Level:**",
+                    motion_analysis["motion_level"],
+                )
+
+                st.caption(
+                    f"Average frame difference: "
+                    f"{motion_analysis['average_frame_difference']}"
+                )
+
+                if visual_quality["warnings"] or motion_analysis["warnings"]:
+                    st.write("**Warnings:**")
+
+                    for warning in (
+                        visual_quality["warnings"]
+                        + motion_analysis["warnings"]
+                    ):
+                        st.warning(warning)
+                else:
+                    st.success("No major visual quality warnings detected.")
+
+                visual_recommendations = [
+                    item for item in recommendations
+                    if item["area"].startswith("Visual")
+                ]
+
+                if visual_recommendations:
+                    st.write("**Visual improvement recommendations:**")
+
+                    for item in visual_recommendations:
+                        st.write(
+                            f"**{item['priority']} priority: "
+                            f"{item['area']}**"
+                        )
+                        st.write(item["recommendation"])
+                else:
+                    st.write(
+                        "Visual quality is strong and consistent."
                     )
 
                 st.divider()

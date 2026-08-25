@@ -13,6 +13,8 @@ def build_recommendations(
     creative_score: dict,
     technical_quality: dict,
     platform_fit: dict,
+    visual_quality: dict | None,
+    motion_analysis: dict | None,
     hook_analysis: dict | None,
     cta_analysis: dict | None,
     pacing_score: dict,
@@ -45,6 +47,78 @@ def build_recommendations(
         "Platform fit",
         f"Reframe or trim the edit for {platform_fit['platform']} so orientation, aspect ratio, and duration match the placement.",
     )
+
+    if visual_quality:
+        visual_warnings = visual_quality.get("warnings", [])
+
+        if visual_quality["sharpness_score"] < 70:
+            recommendations.append(
+                {
+                    "area": "Visual sharpness",
+                    "priority": "High" if visual_quality["sharpness_score"] < 50 else "Medium",
+                    "recommendation": "Several sampled frames appear soft or blurred. Re-export from a sharper source or replace blurred shots.",
+                }
+            )
+
+        if visual_quality["exposure_score"] < 70:
+            recommendation = "Adjust lighting or exposure so the subject remains readable throughout the edit."
+
+            if any("underexposed" in warning for warning in visual_warnings):
+                recommendation = "The image is consistently underexposed. Lift exposure or replace the darkest shots."
+            elif any("overexposed" in warning for warning in visual_warnings):
+                recommendation = "Some sampled frames appear overexposed. Recover highlights or reduce exposure in the edit."
+
+            recommendations.append(
+                {
+                    "area": "Visual exposure",
+                    "priority": "High" if visual_quality["exposure_score"] < 50 else "Medium",
+                    "recommendation": recommendation,
+                }
+            )
+
+        if visual_quality["contrast_score"] < 70:
+            recommendations.append(
+                {
+                    "area": "Visual contrast",
+                    "priority": "High" if visual_quality["contrast_score"] < 50 else "Medium",
+                    "recommendation": "Increase subject/background separation with contrast, lighting, or color grade adjustments.",
+                }
+            )
+
+        if visual_quality["consistency_score"] < 70:
+            recommendations.append(
+                {
+                    "area": "Visual consistency",
+                    "priority": "High" if visual_quality["consistency_score"] < 50 else "Medium",
+                    "recommendation": "Lighting varies substantially across the video. Match exposure and color between shots.",
+                }
+            )
+    else:
+        recommendations.append(
+            {
+                "area": "Visual quality",
+                "priority": "Medium",
+                "recommendation": "Extract readable keyframes so visual sharpness, exposure, contrast, and consistency can be assessed.",
+            }
+        )
+
+    if motion_analysis:
+        if motion_analysis["motion_level"] == "Visually static":
+            recommendations.append(
+                {
+                    "area": "Visual activity",
+                    "priority": "Medium",
+                    "recommendation": "The video remains visually static for long periods. Consider introducing a visual change around the middle of the video.",
+                }
+            )
+        elif motion_analysis["motion_level"] == "Low movement":
+            recommendations.append(
+                {
+                    "area": "Visual activity",
+                    "priority": "Low",
+                    "recommendation": "Consider adding a cutaway, product detail, text treatment, or camera movement to create more visual change.",
+                }
+            )
 
     if hook_analysis:
         _add_score_recommendation(
@@ -97,9 +171,9 @@ def build_recommendations(
     if not recommendations:
         recommendations.append(
             {
-                "area": "Creative quality",
+                "area": "Visual and creative quality",
                 "priority": "Low",
-                "recommendation": "Scores are strong. Review the platform-specific reasons and polish captions, safe zones, and final export settings manually.",
+                "recommendation": "Visual quality is strong and consistent. Review captions, safe zones, and final export settings manually.",
             }
         )
 
