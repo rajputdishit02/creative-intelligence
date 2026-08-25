@@ -6,6 +6,7 @@ from src.video.scene_detector import detect_scenes
 from src.analysis.pacing import analyse_pacing
 from src.video.frame_extractor import extract_keyframes
 from src.audio.extractor import extract_audio
+from src.audio.transcription import transcribe_audio
 
 UPLOAD_DIR = Path("data/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -109,7 +110,13 @@ if uploaded_video:
                 audio_analysis = extract_audio(
                     str(video_path),
                     "data/audio"
-            )
+                )
+                transcription = None
+
+                if audio_analysis["has_audio"]:
+                    transcription = transcribe_audio(
+                        audio_analysis["audio_path"]
+                    )
 
                 st.success("Video analysis complete.")
 
@@ -256,6 +263,43 @@ if uploaded_video:
                     if audio_analysis.get("error"):
                         st.caption(
                             f"Details: {audio_analysis['error']}"
+                        )
+                if audio_analysis["has_audio"]:
+
+                    st.divider()
+                    st.subheader("Speech Transcription")
+
+                    if transcription and transcription["success"]:
+
+                        st.success("Transcription complete.")
+
+                        st.write("**Transcript:**")
+                        st.write(
+                            transcription["transcript"]
+                            or "No speech was detected."
+                        )
+
+                        if transcription["confidence"] is not None:
+                            st.write(
+                                "**Confidence:**",
+                                f"{transcription['confidence'] * 100:.2f}%"
+                            )
+
+                        if transcription["words"]:
+
+                            with st.expander("View word timestamps"):
+
+                                for word in transcription["words"]:
+                                    st.write(
+                                        f"{word['start']:.2f}s – "
+                                        f"{word['end']:.2f}s | "
+                                        f"{word['word']}"
+                                    )
+
+                    elif transcription:
+
+                        st.error(
+                            f"Transcription failed: {transcription['error']}"
                         )
             except Exception as error:
                 st.error(f"Video analysis failed: {error}")
