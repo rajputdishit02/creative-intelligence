@@ -10,7 +10,22 @@ Starter MVP for AI-assisted analysis and optimisation for marketing videos.
 - Target platform selection
 - Marketing video upload
 - Local video preview
-- Placeholder analysis action
+- Deterministic video, audio, transcript, creative, platform and visual analysis
+- AI Creative Director for structured, evidence-based creative review
+
+## AI Creative Director
+
+The AI Creative Director interprets the deterministic analysis and returns a structured creative review. It can:
+
+- explain what is working
+- propose editing improvements grounded in measured evidence
+- generate alternative hooks and CTAs
+- suggest a timestamp-aware video structure
+- provide platform-specific creative advice
+
+It does not predict virality, reach, engagement, conversion, retention or guaranteed performance. It does not replace historical performance analysis.
+
+AI review generation requires `OPENAI_API_KEY` in an ignored local environment file such as `.env`. Do not commit real API keys.
 
 ## Planned roadmap
 

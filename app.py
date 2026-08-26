@@ -21,9 +21,170 @@ from src.analysis.scoring import (
 )
 from src.analysis.recommendations import build_recommendations
 from src.analysis.visual import analyse_motion_intensity, analyse_visual_quality
+from src.ai.creative_director import (
+    generate_creative_review,
+    get_ai_service_status,
+)
+from src.ai.payload import build_creative_review_payload, payload_fingerprint
 
 UPLOAD_DIR = Path("data/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _render_persisted_scorecard(analysis_result: dict) -> None:
+    payload = analysis_result["payload"]
+    overall = payload["overall"]
+
+    st.subheader("Creative Scorecard")
+    st.caption(
+        "This is a transparent heuristic quality score, not a validated "
+        "reach or conversion prediction."
+    )
+
+    with st.container(horizontal=True):
+        st.metric(
+            "Overall Creative Score",
+            f"{overall['score']} / 100",
+            overall["label"],
+            border=True,
+        )
+        st.metric(
+            "Campaign Objective Fit",
+            f"{payload['objective']['score']} / 100",
+            payload["objective"]["objective"],
+            border=True,
+        )
+        st.metric(
+            "Technical Quality",
+            f"{payload['technical']['score']} / 100",
+            payload["technical"]["label"],
+            border=True,
+        )
+        st.metric(
+            "Platform Fit",
+            f"{payload['platform']['score']} / 100",
+            payload["platform"]["target_platform"],
+            border=True,
+        )
+        st.metric(
+            "Visual Quality",
+            f"{payload['visual']['score']} / 100",
+            border=True,
+        )
+
+
+def _render_ai_review(review: dict) -> None:
+    st.subheader("Creative Review")
+    st.write("**Summary**")
+    st.write(review["summary"])
+
+    st.write("**What Works**")
+    for strength in review["what_works"]:
+        st.write("•", strength)
+
+    st.write("**Priority Improvements**")
+    for improvement in review["priority_improvements"]:
+        with st.container(border=True):
+            st.write(
+                f"**{improvement['priority'].title()} priority: "
+                f"{improvement['area']}**"
+            )
+            st.write(improvement["recommendation"])
+            st.caption(f"Evidence: {improvement['evidence']}")
+
+    with st.expander("Hook Lab"):
+        hook_review = review["hook_review"]
+        st.write("**Current hook:**", hook_review["current_hook"] or "Not available")
+        st.write(hook_review["assessment"])
+
+        for alternative in hook_review["alternatives"]:
+            st.write(
+                f"**{alternative['style'].title()}:** "
+                f"{alternative['text']}"
+            )
+
+    with st.expander("CTA Lab"):
+        cta_review = review["cta_review"]
+        st.write("**Current CTA:**", cta_review["current_cta"] or "Not detected")
+        st.write(cta_review["assessment"])
+
+        for alternative in cta_review["alternatives"]:
+            st.write("•", alternative)
+
+    with st.expander("Suggested Video Structure"):
+        st.dataframe(
+            review["suggested_structure"],
+            hide_index=True,
+            width="stretch",
+        )
+
+    with st.expander("Platform Advice"):
+        for advice in review["platform_advice"]:
+            st.write("•", advice)
+
+    st.write("**Final Takeaway**")
+    st.write(review["final_takeaway"])
+
+
+def _render_ai_creative_director(analysis_result: dict) -> None:
+    payload = analysis_result["payload"]
+    fingerprint = payload_fingerprint(payload)
+    stored_fingerprint = st.session_state.get("ai_review_payload_hash")
+
+    if stored_fingerprint != fingerprint:
+        st.session_state.ai_review_result = None
+        st.session_state.ai_review_payload_hash = fingerprint
+
+    st.divider()
+    st.subheader("AI Creative Director")
+    st.caption(
+        "Interprets the deterministic analysis and returns structured, "
+        "evidence-based creative recommendations. It does not predict reach, "
+        "virality, conversion, or retention."
+    )
+    service_status = get_ai_service_status()
+    last_result = st.session_state.get("ai_review_result")
+
+    st.caption(f"AI provider: {service_status['provider'].title()}")
+    st.caption(f"Configured model: {service_status['model']}")
+
+    with st.expander("AI Service Status"):
+        st.write(
+            "**API key configured:**",
+            "Yes" if service_status["api_key_configured"] else "No",
+        )
+        st.write("**Provider:**", service_status["provider"].title())
+        st.write("**Model:**", service_status["model"])
+
+        if last_result:
+            st.write(
+                "**Last request:**",
+                "Success" if last_result["success"] else "Failed",
+            )
+            st.write(
+                "**Error category:**",
+                last_result.get("error_category") or "None",
+            )
+        else:
+            st.write("**Last request:** Not run")
+
+    if st.button(
+        "Generate AI Creative Review",
+        type="secondary",
+        width="stretch",
+        key="generate_ai_creative_review",
+    ):
+        with st.spinner("Generating AI Creative Review..."):
+            st.session_state.ai_review_result = generate_creative_review(payload)
+            st.session_state.ai_review_payload_hash = fingerprint
+
+    ai_result = st.session_state.get("ai_review_result")
+
+    if ai_result:
+        if ai_result["success"]:
+            _render_ai_review(ai_result["review"])
+        else:
+            st.warning(ai_result["error"])
 
 st.set_page_config(
     page_title="Creative Intelligence Platform",
@@ -77,7 +238,29 @@ uploaded_video = st.file_uploader(
     type=["mp4", "mov", "avi", "mkv"],
 )
 
+st.session_state.setdefault("analysis_result", None)
+st.session_state.setdefault("analysis_signature", None)
+st.session_state.setdefault("ai_review_result", None)
+st.session_state.setdefault("ai_review_payload_hash", None)
+st.session_state.setdefault("analysis_displayed_this_run", False)
+st.session_state.analysis_displayed_this_run = False
+
 if uploaded_video:
+    current_signature = (
+        f"{uploaded_video.name}:"
+        f"{getattr(uploaded_video, 'size', 0)}:"
+        f"{client_name}:"
+        f"{campaign_name}:"
+        f"{objective}:"
+        f"{platform}"
+    )
+
+    if st.session_state.analysis_signature != current_signature:
+        st.session_state.analysis_result = None
+        st.session_state.ai_review_result = None
+        st.session_state.ai_review_payload_hash = None
+        st.session_state.analysis_signature = current_signature
+
     video_path = UPLOAD_DIR / uploaded_video.name
 
     with open(video_path, "wb") as file:
@@ -227,6 +410,37 @@ if uploaded_video:
                     pacing_score=pacing_score,
                     objective_analysis=objective_analysis,
                 )
+
+                creative_review_payload = build_creative_review_payload(
+                    client_name=client_name,
+                    campaign_name=campaign_name,
+                    objective=objective,
+                    target_platform=platform,
+                    video_metadata=analysis,
+                    transcript=transcription,
+                    speech_analysis=speech_analysis,
+                    hook_analysis=hook_analysis,
+                    cta_analysis=cta_analysis,
+                    message_analysis=message_analysis,
+                    story_analysis=story_analysis,
+                    scene_analysis=scene_analysis,
+                    pacing_analysis=pacing_analysis,
+                    visual_quality=visual_quality,
+                    motion_analysis=motion_analysis,
+                    technical_quality=technical_quality,
+                    platform_fit=platform_fit,
+                    objective_analysis=objective_analysis,
+                    creative_score=creative_score,
+                    recommendations=recommendations,
+                )
+
+                st.session_state.analysis_result = {
+                    "payload": creative_review_payload,
+                    "signature": current_signature,
+                }
+                st.session_state.ai_review_result = None
+                st.session_state.ai_review_payload_hash = None
+                st.session_state.analysis_displayed_this_run = True
 
                 st.success("Video analysis complete.")
 
@@ -734,6 +948,20 @@ if uploaded_video:
                         "This score changes according to the selected campaign objective."
                     )
 
+                _render_ai_creative_director(
+                    st.session_state.analysis_result
+                )
 
             except Exception as error:
                 st.error(f"Video analysis failed: {error}")
+
+    if (
+        st.session_state.analysis_result
+        and not st.session_state.analysis_displayed_this_run
+    ):
+        _render_persisted_scorecard(
+            st.session_state.analysis_result
+        )
+        _render_ai_creative_director(
+            st.session_state.analysis_result
+        )
